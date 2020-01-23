@@ -22,7 +22,7 @@ class Model(tf.keras.Model):
                 )
         self.output_layer = tf.keras.layers.Dense(
             actionSpace,
-            activation='linear',
+            activation='sigmoid',
             kernel_initializer='RandomNormal',
             dtype='float32'
             )

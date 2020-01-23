@@ -20,24 +20,27 @@ class DQN:
         self.optimizer = tf.keras.optimizers.RMSprop(0.001)
         self.gamma = gamma
         self.model = md.Model(num_actions, num_states, hidden_units)
-        self.max_experiences = max_experiences
-        self.min_experiences = min_experiences
-        self.min_experiences_per_unit = int(min_experiences / num_agents)
-        self.max_experiences_per_unit = int(max_experiences / num_agents)
-        self.memory_units = []
-        for i in range(num_agents):
-            self.memory_units.append(memory_units.Memory_unit(
-                self,
-                i,
-                self.min_experiences_per_unit,
-                self.max_experiences_per_unit
-            ))
+        self.min_experiences_per_unit = min_experiences
+        self.max_experiences_per_unit = max_experiences
+        self.memory_units = None
+        if num_agents != None:
+            self.memory_units = []
+            for i in range(num_agents):
+                self.memory_units.append(memory_units.Memory_unit(
+                    self,
+                    i,
+                    self.min_experiences_per_unit,
+                    self.max_experiences_per_unit
+                ))
         
 
         self.model.compile(
             self.optimizer,
             loss = tf.keras.losses.MeanSquaredError()
         )
+
+    def get_agent(self, id):
+        return self.memory_units[id]
 
     def predict(self, inputs):
         reworked_inputs = np.atleast_2d(inputs.astype('float32'))
@@ -56,10 +59,6 @@ class DQN:
         value_next = np.max(TargetNet.predict(states_next), axis=1)
         actual_values = np.where(dones, rewards, rewards+self.gamma*value_next)
 
-        selected_action_values = tf.math.reduce_sum(
-                self.predict(states) * tf.one_hot(actions, self.num_actions), axis=1
-                )
-
         with tf.GradientTape() as tape:
             selected_action_values = tf.math.reduce_sum(
                 self.predict(states) * tf.one_hot(actions, self.num_actions), axis=1
@@ -73,9 +72,9 @@ class DQN:
         for memory_unit in self.memory_units:
             self.train_on_memory_unit(TargetNet, memory_unit.experience)
 
-    def get_action(self, states, epsilon):
+    def get_action(self, states, epsilon, randomAction):
         if np.random.random() < epsilon:
-            return np.random.choice(self.num_actions)
+            return randomAction()
         else:
             return np.argmax(self.predict(np.atleast_2d(states))[0])
     
